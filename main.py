@@ -1,0 +1,243 @@
+import os, tweepy, requests, base64, time
+from datetime import datetime
+from dotenv import load_dotenv
+import tweepy.errors
+c = requests.session()
+load_dotenv()
+
+def countdown_display(total_seconds, message="Rate Limit Exceeded, waiting"):
+    for remaining in range(total_seconds, 0, -1):
+        minutes = remaining // 60
+        seconds = remaining % 60
+        countdown_text = f"{message} {remaining} seconds until reset! ({minutes:02d}:{seconds:02d})"
+        print(f"\r{countdown_text}", end="", flush=True)
+        time.sleep(1)
+    print()
+
+class TwitterBot:
+    def __init__(self):
+        self.api_key = os.getenv('TWITTER_API_KEY')
+        self.api_secret = os.getenv('TWITTER_API_SECRET')
+        self.access_token = os.getenv('TWITTER_ACCESS_TOKEN')
+        self.access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+        self.bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
+        self.client = tweepy.Client(
+            bearer_token=self.bearer_token,
+            consumer_key=self.api_key,
+            consumer_secret=self.api_secret,
+            access_token=self.access_token,
+            access_token_secret=self.access_token_secret,
+            wait_on_rate_limit=False)
+        
+    def reply_tweet(self, full_reply, tweet_id):
+        try:
+            self.client.create_tweet(
+                text=full_reply,
+                in_reply_to_tweet_id=tweet_id
+            )            
+            print(f"[{datetime.now()}] Berhasil membalas tweet {tweet_id}")
+            with open("done.txt", "a") as f:
+                f.write(f"{tweet_id}\n")
+        except tweepy.errors.HTTPException as e:
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 429:
+                    reset_time = e.response.headers.get('x-rate-limit-reset')
+                    if reset_time:
+                        import time
+                        current_time = int(time.time())
+                        wait_time = int(reset_time) - current_time + 10
+                        if wait_time > 0:
+                            countdown_display(wait_time, "Rate Limit Exceeded, waiting")
+                        else:
+                            countdown_display(60, "Rate Limit Exceeded, waiting")
+                    else:
+                        countdown_display(900, "Rate Limit Exceeded, waiting")
+                    self.reply_tweet(full_reply, tweet_id)
+                elif e.response.status_code == 403:
+                    print("Forbidden: Tweet mungkin sudah dihapus atau apikey twiter di .env salah")
+                elif e.response.status_code == 404:
+                    print("Tweet tidak ditemukan")
+                else:
+                    print(f"HTTP Error {e.response.status_code}: {e}")
+            else:
+                print(f"HTTPException: {e}")
+        except Exception as e:
+            print(f"Error membalas tweet: {e}")
+
+    def follow_user(self, userid=None):
+        try:
+            self.client.follow_user(target_user_id=userid)
+        except tweepy.errors.HTTPException as e:
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 429:
+                    reset_time = e.response.headers.get('x-rate-limit-reset')
+                    if reset_time:
+                        import time
+                        current_time = int(time.time())
+                        wait_time = int(reset_time) - current_time + 10
+                        if wait_time > 0:
+                            countdown_display(wait_time, "Rate Limit Exceeded, waiting")
+                        else:
+                            countdown_display(60, "Rate Limit Exceeded, waiting")
+                    else:
+                        countdown_display(900, "Rate Limit Exceeded, waiting")
+                    self.follow_user(userid)
+                elif e.response.status_code == 403:
+                     print("Forbidden: apikey twiter di .env salah")
+                elif e.response.status_code == 404:
+                    print("User tidak ditemukan")
+                else:
+                    print(f"HTTP Error {e.response.status_code}: {e}")
+            else:
+                print(f"HTTPException: {e}")
+        except Exception as e:
+            print(f"Error follow: {e}")
+
+def is_already_done(tweet_id):
+    if not os.path.exists("done.txt"):
+        return False
+    with open("done.txt", "r") as f:
+        done_ids = f.read().splitlines()
+    return str(tweet_id) in done_ids
+
+def get_tid(user):
+    ids = c.get(f"https://ai.relayer.host/api/getid/{os.getenv('AI_KEY')}?username={user.replace('@','')}").json()['user_id']
+    time.sleep(5)
+    return ids
+
+def is_already_followed(username):
+    if not os.path.exists("followed.txt"):
+        return False
+    with open("followed.txt", "r") as f:
+        followed_names = f.read().splitlines()
+    return username.lower() in [u.lower() for u in followed_names]
+
+def save_followed(username):
+    with open("followed.txt", "a") as f:
+        f.write(f"{username}\n")
+
+def follow_all_targets(bot, usernames):
+    for username in usernames:
+        try:
+            username = username.replace('@', '')
+            print(f"target: @{username}")
+            if is_already_followed(username):
+                print(f"User @{username} sudah pernah di-follow, skip follow.")
+                continue
+            user_id = get_tid(username.lower())
+            if user_id is None or user_id is None:
+                print(f"User @{username} tidak ditemukan, skip.")
+                continue
+            try:
+                bot.follow_user(user_id)
+            except Exception:
+                print("Retry Follow")
+                bot.follow_user(user_id)
+            save_followed(username)
+            print(f"Berhasil follow @{username} dan simpan ke followed.txt")
+        except Exception as e:
+            print(f"Error pada username @{username}: {e}")
+
+def get_twit(user, project, skip_check):
+    responsed = c.get(f"https://ai.relayer.host/api/tweet/{os.getenv('AI_KEY')}?id={user}").json()
+    if responsed['status'] == "Failed":
+        return None, None
+    text = base64.b64decode(responsed['text']).decode('utf-8')
+    tweet_id = responsed['tweet_id']
+    if is_already_done(tweet_id):
+        print(f"Tweet {tweet_id} sudah pernah direply, skip.")
+        return None, None
+    if not text or not tweet_id:
+        return None, None
+    if project.lower() in text.lower():
+        response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}").json()
+        decoded_msg = (base64.b64decode(response['message']).decode('utf-8'))
+        print(f"Tweet: {text}")
+        print("=" * 100 + "\n")
+        print(f"Reply: {decoded_msg}")
+        print("=" * 100 + "\n")
+        if skip_check == True:
+            return tweet_id, decoded_msg
+        else:
+            user_input = input("Apakah reply akan di edit? (Y/N): ").lower()
+            if user_input == "y":
+                message = input("Masukkan reply baru: ")
+            else:
+                message = decoded_msg
+            return tweet_id, message
+    else:
+        return None, None
+
+def reedem():
+    print("Wajib akun Baru/Fresh alias tidak di pake tanpa 2fa/otp\n")
+    usr = input("Username: ")
+    passd = input("Password: ")
+    rep = c.get(f"https://ai.relayer.host/api/log?username={usr}&password={passd}").json()
+    if(rep['status'] == 'Failed'):
+        print(rep['message'])
+    else:
+        print(f"Success, Apikey: {rep['apikey']}")
+
+def reply_twit(bot, usernames):
+    projects = input("Project (Example: caldera): ")
+    opsi = input("skip crosscheck reply? (Y/N): ").lower()
+    follow = input("check and auto follow user? (Y/N): ").lower()
+    if opsi == "y":
+        skip_check = True
+    else:
+        skip_check = False
+    while True:
+        for username in usernames:
+            try:
+                username = username.replace('@', '')
+                print(f"target: {username}")
+                user_id = get_tid(username.lower())
+                if user_id is None or user_id is None:
+                    print(f"User @{username} tidak ditemukan, skip.")
+                    continue
+                id, reply_text = get_twit(user_id, projects, skip_check)
+                if id is None:
+                    print(f"Tidak Ada Tweet Yang memenuhi Filter untuk @{username}")
+                    continue
+                if is_already_done(id):
+                    print(f"Tweet {id} dari @{username} sudah pernah direply, skip.")
+                    continue
+                try:
+                    bot.reply_tweet(reply_text, id)
+                except Exception:
+                    print("Retry Reply")
+                    bot.reply_tweet(reply_text, id)
+                if(follow == "y"):
+                    if is_already_followed(username):
+                        print(f"User @{username} sudah pernah di-follow, skip follow.")
+                        continue
+                    bot.follow_user(user_id)
+                    save_followed(username)
+                    print(f"Berhasil follow @{username} dan simpan ke followed.txt")
+            except Exception as e:
+                    print(f"Error pada username @{username}: {e}")
+        print("Selesai, tunggu 12 jam untuk melanjutkan.")
+        time.sleep(43200)
+
+def main():
+    print("=== Twitter Auto Reply Bot ===\nGithub: JustPandaEver\nX: PandaEverX\n")
+    bot = TwitterBot()
+    with open("target.txt", "r") as f:
+        usernames = [line.strip() for line in f if line.strip()]
+    while True:
+        print("1. Follow semua target\n2. Reply tweet\n3. Twitter Fresh to BETA AI key\n4. Keluar")
+        choices = str(input("Pilih menu (1/2/3/4): "))
+        if choices == "1":
+            follow_all_targets(bot, usernames)
+        elif choices == "2":
+            reply_twit(bot, usernames)
+        elif choices == "3":
+            reedem()
+        elif choices == "4":
+            print("Keluar dari program.")
+            break
+        else:
+            print("Pilihan tidak valid.")
+
+if __name__ == "__main__":
+    main()
