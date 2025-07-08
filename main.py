@@ -45,7 +45,7 @@ class TwitterBot:
                     if reset_time:
                         import time
                         current_time = int(time.time())
-                        wait_time = int(reset_time) - current_time + 10
+                        wait_time = int(reset_time) - current_time + 20
                         if wait_time > 0:
                             countdown_display(wait_time, "Rate Limit Exceeded, waiting")
                         else:
@@ -74,7 +74,7 @@ class TwitterBot:
                     if reset_time:
                         import time
                         current_time = int(time.time())
-                        wait_time = int(reset_time) - current_time + 10
+                        wait_time = int(reset_time) - current_time + 20
                         if wait_time > 0:
                             countdown_display(wait_time, "Rate Limit Exceeded, waiting")
                         else:
@@ -138,7 +138,7 @@ def follow_all_targets(bot, usernames):
         except Exception as e:
             print(f"Error pada username @{username}: {e}")
 
-def get_twit(user, project, skip_check):
+def get_twit(user, projects, skip_check):
     responsed = c.get(f"https://ai.relayer.host/api/tweet/{os.getenv('AI_KEY')}?id={user}").json()
     if responsed['status'] == "Failed":
         return None, None
@@ -149,24 +149,27 @@ def get_twit(user, project, skip_check):
         return None, None
     if not text or not tweet_id:
         return None, None
-    if project.lower() in text.lower():
-        response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}").json()
-        decoded_msg = (base64.b64decode(response['message']).decode('utf-8'))
-        print(f"Tweet: {text}")
-        print("=" * 100 + "\n")
-        print(f"Reply: {decoded_msg}")
-        print("=" * 100 + "\n")
-        if skip_check == True:
-            return tweet_id, decoded_msg
-        else:
-            user_input = input("Apakah reply akan di edit? (Y/N): ").lower()
-            if user_input == "y":
-                message = input("Masukkan reply baru: ")
+    projects_list = [p.strip().lower() for p in projects.split(',')]
+    text_lower = text.lower()
+    for project in projects_list:
+        if project in text_lower:
+            response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}").json()
+            decoded_msg = (base64.b64decode(response['message']).decode('utf-8'))
+            print(f"Tweet: {text}")
+            print("=" * 100 + "\n")
+            print(f"Reply: {decoded_msg}")
+            print("=" * 100 + "\n")
+            if skip_check == True:
+                return tweet_id, decoded_msg
             else:
-                message = decoded_msg
-            return tweet_id, message
-    else:
-        return None, None
+                user_input = input("Apakah reply akan di edit? (Y/N): ").lower()
+                if user_input == "y":
+                    message = input("Masukkan reply baru: ")
+                else:
+                    message = decoded_msg
+                return tweet_id, message
+    
+    return None, None
 
 def reedem():
     print("Wajib akun Baru/Fresh alias tidak di pake tanpa 2fa/otp\n")
@@ -179,7 +182,7 @@ def reedem():
         print(f"Success, Apikey: {rep['apikey']}")
 
 def reply_twit(bot, usernames):
-    projects = input("Project (Example: caldera): ")
+    projects = input("Project (Example: caldera, memex): ")
     opsi = input("skip crosscheck reply? (Y/N): ").lower()
     follow = input("check and auto follow user? (Y/N): ").lower()
     if opsi == "y":
@@ -214,6 +217,7 @@ def reply_twit(bot, usernames):
                     bot.follow_user(user_id)
                     save_followed(username)
                     print(f"Berhasil follow @{username} dan simpan ke followed.txt")
+                time.sleep(20)
             except Exception as e:
                     print(f"Error pada username @{username}: {e}")
         print("Selesai, tunggu 12 jam untuk melanjutkan.")
