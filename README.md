@@ -21,8 +21,8 @@ Bot Twitter otomatis untuk melakukan auto reply dan follow user berdasarkan filt
 
 1. **Clone repository**
 ```bash
-git clone <repository-url>
-cd beta-v1.2.0
+git clone https://github.com/JustPandaEver/Yapping-Bot
+cd Yapping-Bot
 ```
 
 2. **Install dependencies**
