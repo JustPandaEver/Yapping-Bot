@@ -171,16 +171,6 @@ def get_twit(user, projects, skip_check):
     
     return None, None
 
-def reedem():
-    print("Wajib akun Baru/Fresh alias tidak di pake tanpa 2fa/otp\n")
-    usr = input("Username: ")
-    passd = input("Password: ")
-    rep = c.get(f"https://ai.relayer.host/api/log?username={usr}&password={passd}").json()
-    if(rep['status'] == 'Failed'):
-        print(rep['message'])
-    else:
-        print(f"Success, Apikey: {rep['apikey']}")
-
 def reply_twit(bot, usernames):
     projects = input("Project (Example: caldera, memex): ")
     opsi = input("skip crosscheck reply? (Y/N): ").lower()
@@ -229,15 +219,13 @@ def main():
     with open("target.txt", "r") as f:
         usernames = [line.strip() for line in f if line.strip()]
     while True:
-        print("1. Follow semua target\n2. Reply tweet\n3. Twitter Fresh to BETA AI key\n4. Keluar")
-        choices = str(input("Pilih menu (1/2/3/4): "))
+        print("1. Follow semua target\n2. Reply tweet\n3. Keluar")
+        choices = str(input("Pilih menu (1/2/3): "))
         if choices == "1":
             follow_all_targets(bot, usernames)
         elif choices == "2":
             reply_twit(bot, usernames)
         elif choices == "3":
-            reedem()
-        elif choices == "4":
             print("Keluar dari program.")
             break
         else:
