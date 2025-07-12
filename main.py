@@ -344,7 +344,6 @@ def get_file_sha256(file_path):
 def check_update_with_temp_clone():
     try:
         temp_dir = tempfile.mkdtemp()
-        print(f"Cloning repo ke folder sementara: {temp_dir}")
         result = subprocess.run(
             ["git", "clone", "--depth", "1", "https://github.com/JustPandaEver/Yapping-Bot.git", temp_dir],
             capture_output=True, text=True
@@ -368,11 +367,6 @@ def check_update_with_temp_clone():
             print("Sudah menggunakan versi terbaru.")
         else:
             print("Ada update terbaru di repo!")
-
-        # 6. Hapus folder temp
-        shutil.rmtree(temp_dir)
-        print("Folder temp sudah dihapus.")
-
     except Exception as e:
         print(f"Error saat cek update: {e}")
 
