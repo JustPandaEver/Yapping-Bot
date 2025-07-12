@@ -227,7 +227,7 @@ def raid(id, skip_check):
         
 def melon_raid(bot):
     usern = bot.get_current_username()
-    myacc = self_acc.lower().replace('@','')
+    myacc = usern.lower().replace('@','')
     while True:
         list = c.get(f"https://ai.relayer.host/melon/raid/{os.getenv('AI_KEY')}").json()
         if(list == []):
@@ -236,7 +236,7 @@ def melon_raid(bot):
             for url in list:
                 user, ids = extract_id(url)
                 try:
-                    if(myacc == user):
+                    if(myacc == user.lower()):
                         continue
                     print(f"Otw raid @{user} Tweet {ids}")
                     if is_already_done(ids):
