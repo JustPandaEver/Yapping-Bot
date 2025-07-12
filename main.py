@@ -1,4 +1,4 @@
-import os, tweepy, requests, base64, time
+import os, tweepy, requests, base64, time, re, hashlib, sys
 from datetime import datetime
 from dotenv import load_dotenv
 import tweepy.errors
@@ -45,7 +45,7 @@ class TwitterBot:
                     if reset_time:
                         import time
                         current_time = int(time.time())
-                        wait_time = int(reset_time) - current_time + 20
+                        wait_time = int(reset_time) - current_time + 30
                         if wait_time > 0:
                             countdown_display(wait_time, "Rate Limit Exceeded, waiting")
                         else:
@@ -74,7 +74,7 @@ class TwitterBot:
                     if reset_time:
                         import time
                         current_time = int(time.time())
-                        wait_time = int(reset_time) - current_time + 20
+                        wait_time = int(reset_time) - current_time + 30
                         if wait_time > 0:
                             countdown_display(wait_time, "Rate Limit Exceeded, waiting")
                         else:
@@ -168,8 +168,114 @@ def get_twit(user, projects, skip_check):
                 else:
                     message = decoded_msg
                 return tweet_id, message
-    
     return None, None
+
+def extract_url(input_text):
+    pattern = r"https://x.com/[^/]+/status/\d+"
+    urls = re.findall(pattern, input_text)
+    return urls
+
+def extract_id(url):
+    pattern = r"https://x.com/([^/]+)/status/(\d+)"
+    match = re.search(pattern, url)
+    if match:
+        username = match.group(1)
+        tweet_id = match.group(2)
+        return username, tweet_id
+    else:
+        print(f"No match found for URL: {url}")
+        return None, None
+
+def raid(id, skip_check):
+    responsed = c.get(f"https://ai.relayer.host/api/user/tweet/{os.getenv('AI_KEY')}?tweet={id}").json()
+    if responsed['status'] == "Failed":
+        return None, None
+    text = base64.b64decode(responsed['text']).decode('utf-8')
+    tweet_id = responsed['tweet_id']
+    if is_already_done(tweet_id):
+        print(f"Tweet {tweet_id} sudah pernah direply, skip.")
+        return None, None
+    if not text or not tweet_id:
+        return None, None
+    response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}").json()
+    decoded_msg = (base64.b64decode(response['message']).decode('utf-8'))
+    print(f"Tweet: {text}")
+    print("=" * 100 + "\n")
+    print(f"Reply: {decoded_msg}")
+    print("=" * 100 + "\n")
+    if skip_check == True:
+        return tweet_id, decoded_msg
+    else:
+        user_input = input("Apakah reply akan di edit? (Y/N): ").lower()
+        if user_input == "y":
+            message = input("Masukkan reply baru: ")
+        else:
+            message = decoded_msg
+            return tweet_id, message
+        
+def melon_raid(bot):
+    while True:
+        list = c.get(f"https://ai.relayer.host/melon/raid/{os.getenv('AI_KEY')}").json()
+        if(list == []):
+            print("Ai key Tidak Valid")
+        else:
+            for url in list:
+                user, ids = extract_id(url)
+                try:
+                    print(f"Otw raid @{user} Tweet {ids}")
+                    if is_already_done(ids):
+                        print(f"Tweet {ids} dari @{user} sudah pernah direply, skip.")
+                        continue
+                    ids, reply_text = raid(ids, True)
+                    try:
+                        bot.reply_tweet(reply_text, ids)
+                    except Exception:
+                        print("Retry Reply")
+                        bot.reply_tweet(reply_text, ids)
+                except Exception as e:
+                    print(f"Error pada username @{user}: {e}")
+            time.sleep(20)
+        print("Cycle Sudah selesai, tunggu 5 menit sebelum otomatis mengulang cycle")
+        time.sleep(300)
+        
+
+def auto_raid(bot):
+    listny = input("List Targetnya: ")
+    opsi = input("skip crosscheck reply? (Y/N): ").lower()
+    follow = input("check and auto follow user? (Y/N): ").lower()
+    if opsi == "y":
+        skip_check = True
+    else:
+        skip_check = False
+    urls = extract_url(listny)
+    for url in urls:
+        user, ids = extract_id(url)
+        try:
+            print(f"Target: @{user} and Tweet: {ids}")
+            if is_already_done(ids):
+                print(f"Tweet {ids} dari @{user} sudah pernah direply, skip.")
+                continue
+            ids, reply_text = raid(ids, skip_check)
+            try:
+                bot.reply_tweet(reply_text, ids)
+            except Exception:
+                print("Retry Reply")
+                bot.reply_tweet(reply_text, ids)
+            if(follow == "y"):
+                if is_already_followed(user):
+                    print(f"User @{user} sudah pernah di-follow, skip follow.")
+                    continue
+                print(f"target: {user}")
+                try:
+                    user_id = get_tid(user.lower())
+                    bot.follow_user(user_id)
+                    save_followed(user)
+                    print(f"Berhasil follow @{user} dan simpan ke followed.txt")
+                except Exception:
+                    print(f"Gagal Auto Follow @{user}")
+        except Exception as e:
+            print(f"Error pada username @{user}: {e}")
+        time.sleep(20)
 
 def reply_twit(bot, usernames):
     projects = input("Project (Example: caldera, memex): ")
@@ -210,8 +316,34 @@ def reply_twit(bot, usernames):
                 time.sleep(20)
             except Exception as e:
                     print(f"Error pada username @{username}: {e}")
-        print("Selesai, tunggu 12 jam untuk melanjutkan.")
-        time.sleep(43200)
+        print("Selesai, tunggu 3 jam untuk melanjutkan.")
+        time.sleep(10800)
+
+def get_file_sha256(file_path):
+    hash_sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_sha256.update(chunk)
+    return hash_sha256.hexdigest()
+
+def get_url_sha256(url):
+    hash_sha256 = hashlib.sha256()
+    response = requests.get(url)
+    response.raise_for_status()
+    hash_sha256.update(response.content)
+    return hash_sha256.hexdigest()
+
+def compare_local_and_url():
+    try:
+        local_hash = get_file_sha256(__file__)
+        url_hash = get_url_sha256("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/refs/heads/main/main.py")
+        if local_hash == url_hash:
+            print("Already using the latest version.")
+        else:
+            print("Please update to latest Version.")
+            sys.exit()
+    except Exception as e:
+        print(f"Error {e}")
 
 def main():
     print("=== Twitter Auto Reply Bot ===\nGithub: JustPandaEver\nX: PandaEverX\n")
@@ -219,17 +351,22 @@ def main():
     with open("target.txt", "r") as f:
         usernames = [line.strip() for line in f if line.strip()]
     while True:
-        print("1. Follow semua target\n2. Reply tweet\n3. Keluar")
-        choices = str(input("Pilih menu (1/2/3): "))
+        print("1. Follow semua target\n2. Reply tweet\n3. Melon Full Auto Raid\n4. Auto Raid\n5. Keluar")
+        choices = str(input("Pilih menu: "))
         if choices == "1":
             follow_all_targets(bot, usernames)
         elif choices == "2":
             reply_twit(bot, usernames)
         elif choices == "3":
+            melon_raid(bot)
+        elif choices == "4":
+            auto_raid(bot)
+        elif choices == "5":
             print("Keluar dari program.")
             break
         else:
             print("Pilihan tidak valid.")
 
 if __name__ == "__main__":
+    compare_local_and_url()
     main()
