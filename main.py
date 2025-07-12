@@ -367,6 +367,11 @@ def check_update_with_temp_clone():
             print("Sudah menggunakan versi terbaru.")
         else:
             print("Ada update terbaru di repo!")
+            print("Mengambil main.py terbaru dan replace file lokal...")
+            with open(temp_main, "r", encoding="utf-8") as src, open(__file__, "w", encoding="utf-8") as dst:
+                dst.write(src.read())
+            print("main.py berhasil diupdate! Silakan restart program.")
+            sys.exit()
     except Exception as e:
         print(f"Error saat cek update: {e}")
 
