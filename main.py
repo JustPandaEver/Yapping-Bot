@@ -225,7 +225,8 @@ def raid(id, skip_check):
             message = decoded_msg
             return tweet_id, message
         
-def melon_raid(bot, self_acc):
+def melon_raid(bot):
+    usern = bot.get_current_username()
     myacc = self_acc.lower().replace('@','')
     while True:
         list = c.get(f"https://ai.relayer.host/melon/raid/{os.getenv('AI_KEY')}").json()
@@ -374,7 +375,6 @@ def check_update_with_temp_clone():
 def main():
     print("=== Twitter Auto Reply Bot ===\nGithub: JustPandaEver\nX: PandaEverX\n")
     bot = TwitterBot()
-    usern = bot.get_current_username()
     with open("target.txt", "r") as f:
         usernames = [line.strip() for line in f if line.strip()]
     while True:
@@ -385,7 +385,7 @@ def main():
         elif choices == "2":
             reply_twit(bot, usernames)
         elif choices == "3":
-            melon_raid(bot, usern)
+            melon_raid(bot)
         elif choices == "4":
             auto_raid(bot)
         elif choices == "5":
