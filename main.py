@@ -1,4 +1,4 @@
-import os, tweepy, requests, base64, time, re, hashlib, sys, subprocess
+import os, tweepy, requests, base64, time, re, hashlib, sys, subprocess, shutil, tempfile
 from datetime import datetime
 from dotenv import load_dotenv
 import tweepy.errors
@@ -341,40 +341,40 @@ def get_file_sha256(file_path):
             hash_sha256.update(chunk)
     return hash_sha256.hexdigest()
 
-def get_url_sha256(url):
-    hash_sha256 = hashlib.sha256()
-    response = requests.get(url)
-    response.raise_for_status()
-    hash_sha256.update(response.content)
-    return hash_sha256.hexdigest()
-
-def auto_update_git():
+def check_update_with_temp_clone():
     try:
-        print("Menjalankan git pull untuk update...")
-        result = subprocess.run(["git", "pull"], capture_output=True, text=True)
-        print(result.stdout)
-        if result.returncode == 0:
-            print("Update berhasil! Silakan restart programnya.")
-            sys.exit()
-        else:
-            print("Gagal update dengan git pull:")
+        temp_dir = tempfile.mkdtemp()
+        print(f"Cloning repo ke folder sementara: {temp_dir}")
+        result = subprocess.run(
+            ["git", "clone", "--depth", "1", "https://github.com/JustPandaEver/Yapping-Bot.git", temp_dir],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print("Gagal clone repo:")
             print(result.stderr)
-    except Exception as e:
-        print(f"Error saat git pull: {e}")
-
-def compare_local_and_url():
-    try:
+            shutil.rmtree(temp_dir)
+            return
+        temp_main = os.path.join(temp_dir, "main.py")
+        if not os.path.exists(temp_main):
+            print("main.py tidak ditemukan di repo!")
+            shutil.rmtree(temp_dir)
+            return
         local_hash = get_file_sha256(__file__)
-        url_hash = get_url_sha256("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/main/main.py")
-        print(local_hash)
-        print(url_hash)
-        if local_hash == url_hash:
-            print("Already using the latest version.")
+        temp_hash = get_file_sha256(temp_main)
+
+        print(f"SHA256 lokal: {local_hash}")
+        print(f"SHA256 repo : {temp_hash}")
+        if local_hash == temp_hash:
+            print("Sudah menggunakan versi terbaru.")
         else:
-            print("Update tersedia! Melakukan auto-update...")
-            auto_update_git()
+            print("Ada update terbaru di repo!")
+
+        # 6. Hapus folder temp
+        shutil.rmtree(temp_dir)
+        print("Folder temp sudah dihapus.")
+
     except Exception as e:
-        print(f"Error {e}")
+        print(f"Error saat cek update: {e}")
 
 def main():
     print("=== Twitter Auto Reply Bot ===\nGithub: JustPandaEver\nX: PandaEverX\n")
@@ -383,7 +383,7 @@ def main():
     with open("target.txt", "r") as f:
         usernames = [line.strip() for line in f if line.strip()]
     while True:
-        print("1. Follow semua target\n2. Reply tweet\n3. Melon Full Auto Raid\n4. Auto Raid\n5. Update via git pull\n6. Keluar")
+        print("1. Follow semua target\n2. Reply tweet\n3. Melon Full Auto Raid\n4. Auto Raid\n5. Cek Update\n6. Keluar")
         choices = str(input("Pilih menu: "))
         if choices == "1":
             follow_all_targets(bot, usernames)
@@ -394,7 +394,7 @@ def main():
         elif choices == "4":
             auto_raid(bot)
         elif choices == "5":
-            compare_local_and_url()
+            check_update_with_temp_clone()
         elif choices == "6":
             print("Keluar dari program.")
             break
