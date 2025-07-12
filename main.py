@@ -1,4 +1,4 @@
-import os, tweepy, requests, base64, time, re, hashlib, sys
+import os, tweepy, requests, base64, time, re, hashlib, sys, subprocess
 from datetime import datetime
 from dotenv import load_dotenv
 import tweepy.errors
@@ -348,41 +348,31 @@ def get_url_sha256(url):
     hash_sha256.update(response.content)
     return hash_sha256.hexdigest()
 
-def auto_update():
+def auto_update_git():
     try:
-        print("Downloading latest version...")
-        response = requests.get("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/main/main.py")
-        response.raise_for_status()
-        backup_path = __file__ + ".backup"
-        import shutil
-        shutil.copy2(__file__, backup_path)
-        print(f"Backup created: {backup_path}")
-        with open(__file__, 'w', encoding='utf-8') as f:
-            f.write(response.text)
-        print("Update berhasil! restart programnya...")
-        sys.exit()
-        
+        print("Menjalankan git pull untuk update...")
+        result = subprocess.run(["git", "pull"], capture_output=True, text=True)
+        print(result.stdout)
+        if result.returncode == 0:
+            print("Update berhasil! Silakan restart programnya.")
+            sys.exit()
+        else:
+            print("Gagal update dengan git pull:")
+            print(result.stderr)
     except Exception as e:
-        print(f"Error during auto-update: {e}")
-        print("Trying to restore from backup...")
-        try:
-            backup_path = __file__ + ".backup"
-            if os.path.exists(backup_path):
-                shutil.copy2(backup_path, __file__)
-                print("Backup restored successfully.")
-        except Exception as restore_error:
-            print(f"Failed to restore backup: {restore_error}")
-        sys.exit()
+        print(f"Error saat git pull: {e}")
 
 def compare_local_and_url():
     try:
         local_hash = get_file_sha256(__file__)
         url_hash = get_url_sha256("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/main/main.py")
+        print(local_hash)
+        print(url_hash)
         if local_hash == url_hash:
             print("Already using the latest version.")
         else:
             print("Update tersedia! Melakukan auto-update...")
-            auto_update()
+            auto_update_git()
     except Exception as e:
         print(f"Error {e}")
 
@@ -393,7 +383,7 @@ def main():
     with open("target.txt", "r") as f:
         usernames = [line.strip() for line in f if line.strip()]
     while True:
-        print("1. Follow semua target\n2. Reply tweet\n3. Melon Full Auto Raid\n4. Auto Raid\n5. Cek Update\n6. Keluar")
+        print("1. Follow semua target\n2. Reply tweet\n3. Melon Full Auto Raid\n4. Auto Raid\n5. Update via git pull\n6. Keluar")
         choices = str(input("Pilih menu: "))
         if choices == "1":
             follow_all_targets(bot, usernames)
