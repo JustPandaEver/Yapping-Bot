@@ -93,6 +93,18 @@ class TwitterBot:
         except Exception as e:
             print(f"Error follow: {e}")
 
+    def get_current_username(self):
+        try:
+            user = self.client.get_me().data
+            if user:
+                print(f"Username akun saat ini: @{user.username}\n")
+                return user.username
+            else:
+                print("Gagal mendapatkan informasi user.")
+                return None
+        except Exception as e:
+            sys.exit("Pastikan isi Twitter apikey di .env benar")
+
 def is_already_done(tweet_id):
     if not os.path.exists("done.txt"):
         return False
@@ -213,7 +225,8 @@ def raid(id, skip_check):
             message = decoded_msg
             return tweet_id, message
         
-def melon_raid(bot):
+def melon_raid(bot, self_acc):
+    myacc = self_acc.lower().replace('@','')
     while True:
         list = c.get(f"https://ai.relayer.host/melon/raid/{os.getenv('AI_KEY')}").json()
         if(list == []):
@@ -222,6 +235,8 @@ def melon_raid(bot):
             for url in list:
                 user, ids = extract_id(url)
                 try:
+                    if(myacc == user):
+                        continue
                     print(f"Otw raid @{user} Tweet {ids}")
                     if is_already_done(ids):
                         print(f"Tweet {ids} dari @{user} sudah pernah direply, skip.")
@@ -344,7 +359,7 @@ def auto_update():
         print(f"Backup created: {backup_path}")
         with open(__file__, 'w', encoding='utf-8') as f:
             f.write(response.text)
-        print("Update berhasil! Mohon restart programnya...")
+        print("Update berhasil! restart programnya...")
         sys.exit()
         
     except Exception as e:
@@ -374,6 +389,7 @@ def compare_local_and_url():
 def main():
     print("=== Twitter Auto Reply Bot ===\nGithub: JustPandaEver\nX: PandaEverX\n")
     bot = TwitterBot()
+    usern = bot.get_current_username()
     with open("target.txt", "r") as f:
         usernames = [line.strip() for line in f if line.strip()]
     while True:
@@ -384,7 +400,7 @@ def main():
         elif choices == "2":
             reply_twit(bot, usernames)
         elif choices == "3":
-            melon_raid(bot)
+            melon_raid(bot, usern)
         elif choices == "4":
             auto_raid(bot)
         elif choices == "5":
