@@ -359,10 +359,8 @@ def auto_update():
         print(f"Backup created: {backup_path}")
         with open(__file__, 'w', encoding='utf-8') as f:
             f.write(response.text)
-        print("Update berhasil! Program akan restart...")
-        python = sys.executable
-        os.execl(python, python, *sys.argv)
-        
+        print("Update berhasil!")
+        sys.exit()
     except Exception as e:
         print(f"Error during auto-update: {e}")
         print("Trying to restore from backup...")
