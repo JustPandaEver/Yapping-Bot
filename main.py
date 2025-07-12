@@ -333,6 +333,33 @@ def get_url_sha256(url):
     hash_sha256.update(response.content)
     return hash_sha256.hexdigest()
 
+def auto_update():
+    try:
+        print("Downloading latest version...")
+        response = requests.get("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/refs/heads/main/main.py")
+        response.raise_for_status()
+        backup_path = __file__ + ".backup"
+        import shutil
+        shutil.copy2(__file__, backup_path)
+        print(f"Backup created: {backup_path}")
+        with open(__file__, 'w', encoding='utf-8') as f:
+            f.write(response.text)
+        print("Update berhasil! Program akan restart...")
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+        
+    except Exception as e:
+        print(f"Error during auto-update: {e}")
+        print("Trying to restore from backup...")
+        try:
+            backup_path = __file__ + ".backup"
+            if os.path.exists(backup_path):
+                shutil.copy2(backup_path, __file__)
+                print("Backup restored successfully.")
+        except Exception as restore_error:
+            print(f"Failed to restore backup: {restore_error}")
+        sys.exit()
+
 def compare_local_and_url():
     try:
         local_hash = get_file_sha256(__file__)
@@ -340,8 +367,8 @@ def compare_local_and_url():
         if local_hash == url_hash:
             print("Already using the latest version.")
         else:
-            print("Please update to latest Version.")
-            sys.exit()
+            print("Update tersedia! Melakukan auto-update...")
+            auto_update()
     except Exception as e:
         print(f"Error {e}")
 
