@@ -351,7 +351,7 @@ def get_url_sha256(url):
 def auto_update():
     try:
         print("Downloading latest version...")
-        response = requests.get("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/refs/heads/main/main.py")
+        response = requests.get("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/main/main.py")
         response.raise_for_status()
         backup_path = __file__ + ".backup"
         import shutil
@@ -377,7 +377,7 @@ def auto_update():
 def compare_local_and_url():
     try:
         local_hash = get_file_sha256(__file__)
-        url_hash = get_url_sha256("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/refs/heads/main/main.py")
+        url_hash = get_url_sha256("https://raw.githubusercontent.com/JustPandaEver/Yapping-Bot/main/main.py")
         if local_hash == url_hash:
             print("Already using the latest version.")
         else:
