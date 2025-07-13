@@ -36,8 +36,7 @@ class TwitterBot:
                 in_reply_to_tweet_id=tweet_id
             )            
             print(f"[{datetime.now()}] Berhasil membalas tweet {tweet_id}")
-            with open("done.txt", "a") as f:
-                f.write(f"{tweet_id}\n")
+            c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}?done={tweet_id}").json()
         except tweepy.errors.HTTPException as e:
             if hasattr(e, 'response') and e.response is not None:
                 if e.response.status_code == 429:
@@ -51,7 +50,7 @@ class TwitterBot:
                         else:
                             countdown_display(60, "Rate Limit Exceeded, waiting")
                     else:
-                        countdown_display(900, "Rate Limit Exceeded, waiting")
+                        countdown_display(3600, "Rate Limit Exceeded, waiting")
                     self.reply_tweet(full_reply, tweet_id)
                 elif e.response.status_code == 403:
                     print("Forbidden: Tweet mungkin sudah dihapus atau apikey twiter di .env salah")
@@ -80,7 +79,7 @@ class TwitterBot:
                         else:
                             countdown_display(60, "Rate Limit Exceeded, waiting")
                     else:
-                        countdown_display(900, "Rate Limit Exceeded, waiting")
+                        countdown_display(3600, "Rate Limit Exceeded, waiting")
                     self.follow_user(userid)
                 elif e.response.status_code == 403:
                      print("Forbidden: apikey twiter di .env salah")
@@ -106,27 +105,26 @@ class TwitterBot:
             sys.exit("Pastikan isi Twitter apikey di .env benar")
 
 def is_already_done(tweet_id):
-    if not os.path.exists("done.txt"):
+    ds = c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}").json()
+    if 'done' in ds and str(tweet_id) in ds['done']:
+        return True
+    else:
         return False
-    with open("done.txt", "r") as f:
-        done_ids = f.read().splitlines()
-    return str(tweet_id) in done_ids
 
 def get_tid(user):
     ids = c.get(f"https://ai.relayer.host/api/getid/{os.getenv('AI_KEY')}?username={user.replace('@','')}").json()['user_id']
     time.sleep(5)
     return ids
 
+
 def is_already_followed(username):
-    if not os.path.exists("followed.txt"):
-        return False
-    with open("followed.txt", "r") as f:
-        followed_names = f.read().splitlines()
-    return username.lower() in [u.lower() for u in followed_names]
+    ds = c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}").json()
+    if 'users' in ds:
+        if username in ds['users']:
+            return True
 
 def save_followed(username):
-    with open("followed.txt", "a") as f:
-        f.write(f"{username}\n")
+    c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}?user={username}").json()
 
 def follow_all_targets(bot, usernames):
     for username in usernames:
@@ -146,7 +144,7 @@ def follow_all_targets(bot, usernames):
                 print("Retry Follow")
                 bot.follow_user(user_id)
             save_followed(username)
-            print(f"Berhasil follow @{username} dan simpan ke followed.txt")
+            print(f"Berhasil follow @{username} dan simpan ke DB")
         except Exception as e:
             print(f"Error pada username @{username}: {e}")
 
@@ -286,7 +284,7 @@ def auto_raid(bot):
                     user_id = get_tid(user.lower())
                     bot.follow_user(user_id)
                     save_followed(user)
-                    print(f"Berhasil follow @{user} dan simpan ke followed.txt")
+                    print(f"Berhasil follow @{user} dan simpan ke DB")
                 except Exception:
                     print(f"Gagal Auto Follow @{user}")
         except Exception as e:
@@ -296,7 +294,7 @@ def auto_raid(bot):
 def reply_twit(bot, usernames):
     projects = input("Project (Example: caldera, memex): ")
     opsi = input("skip crosscheck reply? (Y/N): ").lower()
-    follow = input("check and auto follow user? (Y/N): ").lower()
+    follow = input("check and auto follow user? (must be have subs in X Dev) (Y/N) : ").lower()
     if opsi == "y":
         skip_check = True
     else:
@@ -328,7 +326,7 @@ def reply_twit(bot, usernames):
                         continue
                     bot.follow_user(user_id)
                     save_followed(username)
-                    print(f"Berhasil follow @{username} dan simpan ke followed.txt")
+                    print(f"Berhasil follow @{username} dan simpan ke DB")
                 time.sleep(20)
             except Exception as e:
                     print(f"Error pada username @{username}: {e}")
