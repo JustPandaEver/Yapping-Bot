@@ -44,7 +44,7 @@ def login():
     if sys.platform == "win32":
         os.system(f'start {url}')
     else:
-        os.system(f'xdg-open {url}')
+        print(f"https://ai.relayer.host/authorize?cid={os.getenv('CLIENT_ID')}")
 
 def get_new_token():
     tok = c.get(f"https://ai.relayer.host/refresh_token?refresh={os.getenv('REFRESH_TOKEN')}&cid={os.getenv('CLIENT_ID')}").json()
