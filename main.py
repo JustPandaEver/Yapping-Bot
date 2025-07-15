@@ -1,108 +1,55 @@
-import os, tweepy, requests, base64, time, re, hashlib, sys, subprocess, shutil, tempfile
+import os, requests, base64, time, re, hashlib, sys, subprocess, shutil, tempfile
 from datetime import datetime
 from dotenv import load_dotenv
-import tweepy.errors
 c = requests.session()
 load_dotenv()
 
-def countdown_display(total_seconds, message="Rate Limit Exceeded, waiting"):
-    for remaining in range(total_seconds, 0, -1):
-        minutes = remaining // 60
-        seconds = remaining % 60
-        countdown_text = f"{message} {remaining} seconds until reset! ({minutes:02d}:{seconds:02d})"
-        print(f"\r{countdown_text}", end="", flush=True)
-        time.sleep(1)
-    print()
 
 class TwitterBot:
-    def __init__(self):
-        self.api_key = os.getenv('TWITTER_API_KEY')
-        self.api_secret = os.getenv('TWITTER_API_SECRET')
-        self.access_token = os.getenv('TWITTER_ACCESS_TOKEN')
-        self.access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
-        self.bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
-        self.client = tweepy.Client(
-            bearer_token=self.bearer_token,
-            consumer_key=self.api_key,
-            consumer_secret=self.api_secret,
-            access_token=self.access_token,
-            access_token_secret=self.access_token_secret,
-            wait_on_rate_limit=False)
-        
-    def reply_tweet(self, full_reply, tweet_id):
+    def reply_tweet(self, access, full_reply, tweet_id):
         try:
-            self.client.create_tweet(
-                text=full_reply,
-                in_reply_to_tweet_id=tweet_id
-            )            
-            print(f"[{datetime.now()}] Berhasil membalas tweet {tweet_id}")
-            c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}?done={tweet_id}").json()
-        except tweepy.errors.HTTPException as e:
-            if hasattr(e, 'response') and e.response is not None:
-                if e.response.status_code == 429:
-                    reset_time = e.response.headers.get('x-rate-limit-reset')
-                    if reset_time:
-                        import time
-                        current_time = int(time.time())
-                        wait_time = int(reset_time) - current_time + 30
-                        if wait_time > 0:
-                            countdown_display(wait_time, "Rate Limit Exceeded, waiting")
-                        else:
-                            countdown_display(60, "Rate Limit Exceeded, waiting")
-                    else:
-                        countdown_display(3600, "Rate Limit Exceeded, waiting")
-                    self.reply_tweet(full_reply, tweet_id)
-                elif e.response.status_code == 403:
-                    print("Forbidden: Tweet mungkin sudah dihapus atau apikey twiter di .env salah")
-                elif e.response.status_code == 404:
-                    print("Tweet tidak ditemukan")
-                else:
-                    print(f"HTTP Error {e.response.status_code}: {e}")
+            dsc = c.get(f"https://ai.relayer.host/tweet?access_token={access}&text={full_reply}&id={tweet_id}").text
+            if('reply.in_reply_to_tweet_id' in dsc):
+                print('skipping Community post')
+            elif('error' in dsc):
+                print(f"Error: {dsc}")
             else:
-                print(f"HTTPException: {e}")
+                print(f"[{datetime.now()}] Berhasil membalas tweet {tweet_id}")
+                c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}?done={tweet_id}").json()
+                time.sleep(20)
         except Exception as e:
-            print(f"Error membalas tweet: {e}")
+            pass
 
-    def follow_user(self, userid=None):
-        try:
-            self.client.follow_user(target_user_id=userid)
-        except tweepy.errors.HTTPException as e:
-            if hasattr(e, 'response') and e.response is not None:
-                if e.response.status_code == 429:
-                    reset_time = e.response.headers.get('x-rate-limit-reset')
-                    if reset_time:
-                        import time
-                        current_time = int(time.time())
-                        wait_time = int(reset_time) - current_time + 30
-                        if wait_time > 0:
-                            countdown_display(wait_time, "Rate Limit Exceeded, waiting")
-                        else:
-                            countdown_display(60, "Rate Limit Exceeded, waiting")
-                    else:
-                        countdown_display(3600, "Rate Limit Exceeded, waiting")
-                    self.follow_user(userid)
-                elif e.response.status_code == 403:
-                     print("Forbidden: apikey twiter di .env salah")
-                elif e.response.status_code == 404:
-                    print("User tidak ditemukan")
+def update_refresh_token(new_token):
+    lines = []
+    found = False
+    if not os.path.exists(".env"):
+        lines = [f"REFRESH_TOKEN={new_token}\n"]
+    else:
+        with open(".env", 'r') as f:
+            for line in f:
+                if line.startswith("REFRESH_TOKEN="):
+                    lines.append(f"REFRESH_TOKEN={new_token}\n")
+                    found = True
                 else:
-                    print(f"HTTP Error {e.response.status_code}: {e}")
-            else:
-                print(f"HTTPException: {e}")
-        except Exception as e:
-            print(f"Error follow: {e}")
+                    lines.append(line)
+        if not found:
+            lines.append(f"REFRESH_TOKEN={new_token}")
+    with open(".env", 'w') as f:
+        f.writelines(lines)
+    load_dotenv(override=True)
 
-    def get_current_username(self):
-        try:
-            user = self.client.get_me().data
-            if user:
-                print(f"Username akun saat ini: @{user.username}\n")
-                return user.username
-            else:
-                print("Gagal mendapatkan informasi user.")
-                return None
-        except Exception as e:
-            sys.exit("Pastikan isi Twitter apikey di .env benar")
+def login():
+    url = f"https://ai.relayer.host/authorize?cid={os.getenv('CLIENT_ID')}"
+    if sys.platform == "win32":
+        os.system(f'start {url}')
+    else:
+        os.system(f'xdg-open {url}')
+
+def get_new_token():
+    tok = c.get(f"https://ai.relayer.host/refresh_token?refresh={os.getenv('REFRESH_TOKEN')}&cid={os.getenv('CLIENT_ID')}").json()
+    update_refresh_token(tok['refresh_token'])
+    return tok['access_token']
 
 def is_already_done(tweet_id):
     ds = c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}").json()
@@ -115,38 +62,6 @@ def get_tid(user):
     ids = c.get(f"https://ai.relayer.host/api/getid/{os.getenv('AI_KEY')}?username={user.replace('@','')}").json()['user_id']
     time.sleep(5)
     return ids
-
-
-def is_already_followed(username):
-    ds = c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}").json()
-    if 'users' in ds:
-        if username in ds['users']:
-            return True
-
-def save_followed(username):
-    c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}?user={username}").json()
-
-def follow_all_targets(bot, usernames):
-    for username in usernames:
-        try:
-            username = username.replace('@', '')
-            print(f"target: @{username}")
-            if is_already_followed(username):
-                print(f"User @{username} sudah pernah di-follow, skip follow.")
-                continue
-            user_id = get_tid(username.lower())
-            if user_id is None or user_id is None:
-                print(f"User @{username} tidak ditemukan, skip.")
-                continue
-            try:
-                bot.follow_user(user_id)
-            except Exception:
-                print("Retry Follow")
-                bot.follow_user(user_id)
-            save_followed(username)
-            print(f"Berhasil follow @{username} dan simpan ke DB")
-        except Exception as e:
-            print(f"Error pada username @{username}: {e}")
 
 def get_twit(user, projects, skip_check):
     responsed = c.get(f"https://ai.relayer.host/api/tweet/{os.getenv('AI_KEY')}?id={user}").json()
@@ -224,39 +139,41 @@ def raid(id, skip_check):
             return tweet_id, message
         
 def melon_raid(bot):
-    usern = bot.get_current_username()
-    myacc = usern.lower().replace('@','')
-    while True:
-        list = c.get(f"https://ai.relayer.host/melon/raid/{os.getenv('AI_KEY')}").json()
-        if(list == []):
-            print("Ai key Tidak Valid")
-        else:
-            for url in list:
-                user, ids = extract_id(url)
+    load_dotenv()
+    usern = c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}").json()['X']
+    myacc = usern.lower()
+    token = get_new_token()
+    list = c.get(f"https://ai.relayer.host/melon/raid/{os.getenv('AI_KEY')}").json()
+    if(list == []):
+        print("Ai key Tidak Valid")
+    else:
+        for url in list:
+            user, ids = extract_id(url)
+            try:
+                if(myacc == user.lower()):
+                    continue
+                print(f"Otw raid @{user} Tweet {ids}")
+                if is_already_done(ids):
+                    print(f"Tweet {ids} dari @{user} sudah pernah direply, skip.")
+                    continue
                 try:
-                    if(myacc == user.lower()):
-                        continue
-                    print(f"Otw raid @{user} Tweet {ids}")
-                    if is_already_done(ids):
-                        print(f"Tweet {ids} dari @{user} sudah pernah direply, skip.")
-                        continue
                     ids, reply_text = raid(ids, True)
-                    try:
-                        bot.reply_tweet(reply_text, ids)
-                    except Exception:
-                        print("Retry Reply")
-                        bot.reply_tweet(reply_text, ids)
-                except Exception as e:
-                    print(f"Error pada username @{user}: {e}")
-            time.sleep(20)
-        print("Cycle Sudah selesai, tunggu 5 menit sebelum otomatis mengulang cycle")
-        time.sleep(300)
-        
+                except Exception:
+                    time.sleep(5)
+                    ids, reply_text = raid(ids, True)
+                try:
+                    bot.reply_tweet(token, reply_text, ids)
+                except Exception:
+                    print("Retry Reply")
+                    bot.reply_tweet(token, reply_text, ids)
+            except Exception as e:
+                print(f"Error pada username @{user}: {e}")
+        print("Doneeee semua serrr")
 
 def auto_raid(bot):
+    token = get_new_token()
     listny = input("List Targetnya: ")
     opsi = input("skip crosscheck reply? (Y/N): ").lower()
-    follow = input("check and auto follow user? (Y/N): ").lower()
     if opsi == "y":
         skip_check = True
     else:
@@ -271,35 +188,22 @@ def auto_raid(bot):
                 continue
             ids, reply_text = raid(ids, skip_check)
             try:
-                bot.reply_tweet(reply_text, ids)
+                bot.reply_tweet(token, reply_text, ids)
             except Exception:
                 print("Retry Reply")
-                bot.reply_tweet(reply_text, ids)
-            if(follow == "y"):
-                if is_already_followed(user):
-                    print(f"User @{user} sudah pernah di-follow, skip follow.")
-                    continue
-                print(f"target: {user}")
-                try:
-                    user_id = get_tid(user.lower())
-                    bot.follow_user(user_id)
-                    save_followed(user)
-                    print(f"Berhasil follow @{user} dan simpan ke DB")
-                except Exception:
-                    print(f"Gagal Auto Follow @{user}")
+                bot.reply_tweet(token, reply_text, ids)
         except Exception as e:
             print(f"Error pada username @{user}: {e}")
-        time.sleep(20)
 
 def reply_twit(bot, usernames):
     projects = input("Project (Example: caldera, memex): ")
     opsi = input("skip crosscheck reply? (Y/N): ").lower()
-    follow = input("check and auto follow user? (must be have subs in X Dev) (Y/N) : ").lower()
     if opsi == "y":
         skip_check = True
     else:
         skip_check = False
     while True:
+        token = get_new_token()
         for username in usernames:
             try:
                 username = username.replace('@', '')
@@ -316,18 +220,10 @@ def reply_twit(bot, usernames):
                     print(f"Tweet {id} dari @{username} sudah pernah direply, skip.")
                     continue
                 try:
-                    bot.reply_tweet(reply_text, id)
+                    bot.reply_tweet(token, reply_text, id)
                 except Exception:
                     print("Retry Reply")
-                    bot.reply_tweet(reply_text, id)
-                if(follow == "y"):
-                    if is_already_followed(username):
-                        print(f"User @{username} sudah pernah di-follow, skip follow.")
-                        continue
-                    bot.follow_user(user_id)
-                    save_followed(username)
-                    print(f"Berhasil follow @{username} dan simpan ke DB")
-                time.sleep(20)
+                    bot.reply_tweet(token, reply_text, id)
             except Exception as e:
                     print(f"Error pada username @{username}: {e}")
         print("Selesai, tunggu 3 jam untuk melanjutkan.")
@@ -370,29 +266,33 @@ def check_update_with_temp_clone():
     except Exception as e:
         print(f"Error saat cek update: {e}")
 
+
 def main():
     print("=== Twitter Auto Reply Bot ===\nGithub: JustPandaEver\nX: PandaEverX\n")
     bot = TwitterBot()
     with open("target.txt", "r") as f:
         usernames = [line.strip() for line in f if line.strip()]
     while True:
-        print("1. Follow semua target\n2. Reply tweet\n3. Melon Full Auto Raid\n4. Auto Raid\n5. Cek Update\n6. Keluar")
+        print("1. Reply tweet\n2. Melon Full Auto Raid\n3. Auto Raid\n4. Cek Update\n5. Keluar")
         choices = str(input("Pilih menu: "))
         if choices == "1":
-            follow_all_targets(bot, usernames)
-        elif choices == "2":
             reply_twit(bot, usernames)
-        elif choices == "3":
+        elif choices == "2":
             melon_raid(bot)
-        elif choices == "4":
+        elif choices == "3":
             auto_raid(bot)
-        elif choices == "5":
+        elif choices == "4":
             check_update_with_temp_clone()
-        elif choices == "6":
+        elif choices == "5":
             print("Keluar dari program.")
-            break
+            break            
         else:
             print("Pilihan tidak valid.")
 
 if __name__ == "__main__":
+    if(os.getenv('REFRESH_TOKEN') == None or os.getenv('REFRESH_TOKEN') =='\n' or os.getenv('REFRESH_TOKEN') ==''):
+        login()
+        the_token = input("Refresh Token? ")
+        update_refresh_token(the_token)
+    load_dotenv(override=True)
     main()
