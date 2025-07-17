@@ -167,6 +167,7 @@ def melon_raid(bot):
                     print("Retry Reply")
                     bot.reply_tweet(token, reply_text, ids)
             except Exception as e:
+                time.sleep(5)
                 print(f"Error pada username @{user}: {e}")
         print("Doneeee semua serrr")
 
