@@ -1,27 +1,28 @@
-# Twitter Auto Reply Bot
+# Yapping-Bot: Twitter Auto Reply Bot
 
-Bot Twitter otomatis untuk melakukan auto reply dan follow user berdasarkan filter project tertentu.
+Bot otomatis untuk membalas tweet di X (Twitter) berdasarkan filter project tertentu menggunakan AI dari ai.relayer.host.
 
 ## 🚀 Fitur
 
 - **Auto Reply Tweet**: Membalas tweet secara otomatis berdasarkan filter project
-- **Auto Follow User**: Follow user target secara otomatis
-- **Rate Limit Handling**: Penanganan rate limit Twitter API yang cerdas
-- **Duplicate Prevention**: Mencegah reply duplikat dan follow duplikat
-- **Interactive Mode**: Mode interaktif untuk review reply sebelum dikirim
+- **Melon Full Auto Raid**: Membalas tweet dari daftar target secara otomatis
+- **Auto Raid**: Membalas tweet dari URL yang diberikan
+- **Cek Update**: Mengecek apakah ada update terbaru dari repository
+- **Duplicate Prevention**: Mencegah reply duplikat
+- **Interactive Mode**: Opsi untuk mengedit reply sebelum dikirim
 - **Project Filter**: Filter tweet berdasarkan kata kunci project tertentu
 
 ## 📋 Prerequisites
 
 - Python 3.7+
 - Twitter Developer Account
-- API Key dari [ai.relayer.host](https://ai.relayer.host)
+- AI Key dari [ai.relayer.host](https://ai.relayer.host)
 
 ## 🛠️ Instalasi
 
 1. **Clone repository**
 ```bash
-git clone https://github.com/JustPandaEver/Yapping-Bot
+git clone https://github.com/JustPandaEver/Yapping-Bot.git
 cd Yapping-Bot
 ```
 
@@ -33,19 +34,13 @@ pip install -r requirements.txt
 3. **Setup environment variables**
 Buat file `.env` di root directory dengan konfigurasi berikut:
 ```env
-# Twitter API Credentials
-TWITTER_API_KEY=your_twitter_api_key
-TWITTER_API_SECRET=your_twitter_api_secret
-TWITTER_ACCESS_TOKEN=your_twitter_access_token
-TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
-TWITTER_BEARER_TOKEN=your_twitter_bearer_token
-
-# AI Service API Key
 AI_KEY=your_ai_relayer_api_key
+CLIENT_ID=your_client_id
+REFRESH_TOKEN=your_refresh_token # (akan diisi otomatis setelah login pertama)
 ```
 
 4. **Setup target users**
-Buat file `target.txt` dan masukkan username Twitter target (satu username per baris):
+Buat file `target.txt` dan masukkan username Twitter target (satu username per baris, tanpa @):
 ```txt
 username1
 username2
@@ -60,84 +55,44 @@ python main.py
 ```
 
 ### Menu Utama
-Bot akan menampilkan menu dengan 3 opsi:
+Saat dijalankan, bot akan menampilkan menu:
 
-1. **Follow semua target** - Follow semua user dalam `target.txt`
-2. **Reply tweet** - Mode auto reply dengan konfigurasi
-3. **Keluar** - Keluar dari program
+1. **Reply tweet** - Membalas tweet user di `target.txt` berdasarkan filter project
+2. **Melon Full Auto Raid** - Membalas tweet dari daftar target otomatis (khusus fitur melon)
+3. **Auto Raid** - Membalas tweet dari daftar URL yang diberikan
+4. **Cek Update** - Mengecek update script dari repository
+5. **Keluar** - Keluar dari program
 
-### Mode Reply Tweet
-Ketika memilih opsi 2, bot akan meminta input:
+### Penjelasan Menu
+- **Reply tweet**: Masukkan kata kunci project (misal: caldera, memex). Bot akan mencari tweet yang mengandung kata kunci tersebut dan membalasnya.
+- **Melon Full Auto Raid**: Membalas semua tweet dari daftar target yang diambil otomatis dari server.
+- **Auto Raid**: Masukkan daftar URL tweet (format: https://x.com/username/status/1234567890) untuk dibalas secara otomatis.
+- **Cek Update**: Mengecek apakah script sudah versi terbaru.
 
-1. **Project Filter**: Masukkan kata kunci project (contoh: `caldera, memex`)
-2. **Skip Crosscheck**: Pilih Y/N untuk skip review reply
-3. **Auto Follow**: Pilih Y/N untuk auto follow user setelah reply
+## ⚙️ Konfigurasi & Catatan
+- File `.env` hanya membutuhkan `AI_KEY`, `CLIENT_ID`, dan `REFRESH_TOKEN`.
+- `REFRESH_TOKEN` akan diminta saat pertama kali login dan diperbarui otomatis.
+- File `target.txt` wajib ada untuk menu Reply tweet.
+- Tidak ada fitur auto-follow atau penyimpanan ke `done.txt`/`followed.txt`.
+- Semua tracking status dilakukan via API ai.relayer.host.
 
-## 📁 File Output
+## 🧩 Dependencies
 
-Bot akan membuat beberapa file untuk tracking:
-
-- `done.txt` - Menyimpan ID tweet yang sudah direply
-- `followed.txt` - Menyimpan username yang sudah di-follow
-
-## ⚙️ Konfigurasi
-
-### Rate Limit Handling
-Bot secara otomatis menangani rate limit Twitter API dengan:
-- Menunggu sesuai header `x-rate-limit-reset`
-- Countdown display untuk user
-- Retry otomatis setelah rate limit reset
-
-### Delay Settings
-- Delay 5 detik setelah get user ID
-- Delay 20 detik antara reply tweet
-- Delay 12 jam setelah selesai satu cycle
-
-## 🔧 Troubleshooting
-
-### Error Umum
-
-1. **"Forbidden: apikey twitter di .env salah"**
-   - Periksa kembali Twitter API credentials di file `.env`
-   - Pastikan aplikasi Twitter memiliki permission yang tepat
-
-2. **"User tidak ditemukan"**
-   - Periksa username di `target.txt`
-   - Pastikan username valid dan tidak di-private
-
-3. **"Tweet tidak ditemukan"**
-   - Tweet mungkin sudah dihapus
-   - Atau tweet di-private oleh user
-
-### Tips Penggunaan
-
-1. **Gunakan mode interaktif** untuk review reply sebelum dikirim
-2. **Monitor rate limit** untuk menghindari suspension
-3. **Backup file tracking** secara berkala
-4. **Test dengan user dummy** sebelum menggunakan ke target utama
-
-## �� Dependencies
-
-- `tweepy>=4.14.0` - Twitter API wrapper
-- `python-dotenv>=0.19.0` - Environment variable management
-- `requests` - HTTP requests untuk AI service
+- `requests` - HTTP requests
+- `python-dotenv` - Environment variable management
 
 ## 🤝 Kontribusi
 
 Bot ini dikembangkan oleh [PandaEver](https://github.com/JustPandaEver)
 
 - **Github**: [JustPandaEver](https://github.com/JustPandaEver)
-- **Twitter**: [@PandaEverX](https://twitter.com/PandaEverX)
+- **X (Twitter)**: [@PandaEverX](https://twitter.com/PandaEverX)
 
 ## ⚠️ Disclaimer
 
-- Gunakan bot ini dengan bijak dan sesuai dengan Terms of Service Twitter
+- Gunakan bot ini dengan bijak dan sesuai dengan Terms of Service X (Twitter)
 - Bot ini untuk tujuan edukasi dan penggunaan pribadi
 - Penulis tidak bertanggung jawab atas penyalahgunaan bot
-
-## 📄 License
-
-Project ini open source dan tersedia di bawah lisensi MIT.
 
 ---
 
