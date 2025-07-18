@@ -1,6 +1,6 @@
 # Yapping-Bot: Twitter Auto Reply Bot
 
-Bot otomatis untuk membalas tweet di X (Twitter) berdasarkan filter project tertentu menggunakan AI dari ai.relayer.host.
+Bot otomatis untuk membalas tweet di X (Twitter) berdasarkan filter project tertentu menggunakan AI dari ai.relayer.host
 
 ## 🚀 Fitur
 
