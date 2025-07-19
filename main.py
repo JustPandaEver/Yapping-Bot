@@ -36,7 +36,7 @@ def self_ai(ser_res):
     if (os.getenv('SELF_AI')).lower() == "y":
         ai_client = genai.Client(api_key=os.getenv('GEMINI_KEY'))
     else:
-        print("DAMn...")
+        return "self ai is not enabled in .env"
     with open("prompt.txt",'r') as f:
         promp = f.read()
     fixed= promp.replace("`TEXT`", ser_res)
