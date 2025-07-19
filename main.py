@@ -15,7 +15,7 @@ except ImportError:
 
 c = requests.session()
 load_dotenv()
-ai_client = genai.Client(api_key=os.getenv('GEMINI_KEY'))
+
 
 class TwitterBot:
     def reply_tweet(self, access, full_reply, tweet_id):
@@ -33,11 +33,15 @@ class TwitterBot:
             pass
 
 def self_ai(ser_res):
+    if (os.getenv('SELF_AI')).lower() == "y":
+        ai_client = genai.Client(api_key=os.getenv('GEMINI_KEY'))
+    else:
+        print("DAMn...")
     with open("prompt.txt",'r') as f:
         promp = f.read()
     fixed= promp.replace("`TEXT`", ser_res)
     response = ai_client.models.generate_content(model="gemini-2.5-flash", contents=fixed).text
-    return response.replace('*','')
+    return (response.replace('*','')).replace('.','')
 
 
 def update_refresh_token(new_token):
@@ -147,7 +151,7 @@ def raid(id, skip_check):
     if not text or not tweet_id:
         return None, None
     response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}").json()
-    decoded_msg = (base64.b64decode(response['message']).decode('utf-8'))
+    decoded_msg = (base64.b64decode(response['message']).decode('utf-8')).replace('.','')
     if (os.getenv('SELF_AI')).lower() == "y":
         decoded_msg = self_ai(decoded_msg)
     print(f"Tweet: {text}")
@@ -221,6 +225,7 @@ def auto_raid(bot):
                 bot.reply_tweet(token, reply_text, ids)
         except Exception as e:
             print(f"Error pada username @{user}: {e}")
+    input("Enter untuk kembali ke menu")
 
 def reply_twit(bot, usernames):
     projects = input("Project (Example: caldera, memex): ")
