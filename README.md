@@ -41,7 +41,7 @@ Buat file `.env` di root directory dengan konfigurasi berikut:
 AI_KEY=your_ai_relayer_api_key
 CLIENT_ID=your_client_id
 REFRESH_TOKEN=your_refresh_token # (akan diisi otomatis setelah login pertama)
-SELF_AI=y # (opsional, isi 'y' untuk aktifkan Gemini AI, default: n)
+SELF_AI=n # (opsional, isi 'y' untuk aktifkan Gemini AI, default: n)
 GEMINI_KEY=your_google_gemini_api_key # (opsional, hanya jika SELF_AI=y)
 ```
 
