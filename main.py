@@ -20,7 +20,7 @@ load_dotenv()
 class TwitterBot:
     def reply_tweet(self, access, full_reply, tweet_id):
         try:
-            dsc = c.get(f"https://ai.relayer.host/tweet/{os.getenv('CLIENT_ID')/{os.getenv('AI_KEY')}?access_token={access}&text={full_reply}&id={tweet_id}").text
+            dsc = c.get(f"https://ai.relayer.host/tweet/{os.getenv('CLIENT_ID')}/{os.getenv('AI_KEY')}?access_token={access}&text={full_reply}&id={tweet_id}").text
             if('reply.in_reply_to_tweet_id' in dsc):
                 print('skipping Community post')
             elif('error' in dsc):
