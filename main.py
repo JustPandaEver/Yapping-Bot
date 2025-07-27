@@ -1,21 +1,10 @@
 import os, requests, base64, time, re, sys, subprocess
 from datetime import datetime
 from dotenv import load_dotenv
-try:
-    from google import genai
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--force-reinstall", "google-genai"])
-    from google import genai
-
-try:
-    import readchar
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--force-reinstall", "readchar"])
-    import readchar
+import readchar
 
 c = requests.session()
 load_dotenv()
-
 
 class TwitterBot:
     def reply_tweet(self, access, full_reply, tweet_id):
@@ -32,18 +21,6 @@ class TwitterBot:
         except Exception as e:
             pass
 
-def self_ai(ser_res):
-    if (os.getenv('SELF_AI')).lower() == "y":
-        ai_client = genai.Client(api_key=os.getenv('GEMINI_KEY'))
-    else:
-        return "self ai is not enabled in .env"
-    with open("prompt.txt",'r') as f:
-        promp = f.read()
-    fixed= promp.replace("`TEXT`", ser_res)
-    response = ai_client.models.generate_content(model="gemini-2.5-flash", contents=fixed).text
-    return (response.replace('*','')).replace('.','')
-
-
 def update_refresh_token(new_token):
     lines = []
     found = False
@@ -53,7 +30,7 @@ def update_refresh_token(new_token):
         with open(".env", 'r') as f:
             for line in f:
                 if line.startswith("REFRESH_TOKEN="):
-                    lines.append(f"REFRESH_TOKEN={new_token}\n")
+                    lines.append(f"\nREFRESH_TOKEN={new_token}\n")
                     found = True
                 else:
                     lines.append(line)
@@ -119,10 +96,11 @@ def get_twit(user, projects, skip_check):
     text_lower = text.lower()
     for project in projects_list:
         if project in text_lower:
-            response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}").json()
-            decoded_msg = (base64.b64decode(response['message']).decode('utf-8'))
-            if (os.getenv('SELF_AI')).lower() == "y":
-                decoded_msg = self_ai(decoded_msg)
+            response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}")
+            if(response.status_code != 200):
+                sys.exit(f"Rate Limit Exceeded from AI")
+            response_json = response.json()
+            decoded_msg = (base64.b64decode(response_json['message']).decode('utf-8'))
             print(f"Tweet: {text}")
             print("=" * 100 + "\n")
             print(f"Reply: {decoded_msg}")
@@ -150,10 +128,11 @@ def raid(id, skip_check):
         return None, None
     if not text or not tweet_id:
         return None, None
-    response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}").json()
-    decoded_msg = (base64.b64decode(response['message']).decode('utf-8')).replace('.','')
-    if (os.getenv('SELF_AI')).lower() == "y":
-        decoded_msg = self_ai(decoded_msg)
+    response = c.get(f"https://ai.relayer.host/api/{os.getenv('AI_KEY')}?text={text}")
+    if(response.status_code != 200):
+        sys.exit(f"Rate Limit Exceeded from AI")
+    response_json = response.json()
+    decoded_msg = (base64.b64decode(response_json['message']).decode('utf-8')).replace('.','')
     print(f"Tweet: {text}")
     print("=" * 100 + "\n")
     print(f"Reply: {decoded_msg}")
@@ -289,7 +268,6 @@ def main():
         "Reply tweet",
         "Melon Full Auto Raid",
         "Auto Raid",
-        "Self Ai Prompt TEST",
         "Exit"
     ]
     while True:
@@ -302,9 +280,6 @@ def main():
         elif choice == 2:
             auto_raid(bot)
         elif choice == 3:
-            print(self_ai(input("Reply TEXT Example: ")))
-            input("Tekan Enter untuk kembali ke menu...")
-        elif choice == 4:
             print("Keluar dari program.")
             break
 
