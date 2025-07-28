@@ -15,7 +15,7 @@ Bot otomatis untuk membalas tweet di X (Twitter) berdasarkan filter project tert
 
 - Python 3.7+
 - Twitter Developer Account
-- AI Key dari [ai.relayer.host](https://ai.relayer.host)
+- AI Key dari [ai.relayer.host](https://ai.relayer.host) hasil reedem dari NFT [OPENSEA](https://opensea.io/collection/yapagent-pass)
 - CLIENT_ID dari [developer.twitter.com](https://developer.twitter.com/en/portal/dashboard)
 
 > **Catatan:** Anda memerlukan Twitter Developer Account dan Twitter API Key untuk menjalankan bot ini. Semua interaksi dilakukan melalui layanan ai.relayer.host.
