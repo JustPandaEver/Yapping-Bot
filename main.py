@@ -16,7 +16,6 @@ class TwitterBot:
                 print(f"Error: {dsc}")
             else:
                 print(f"[{datetime.now()}] Berhasil membalas tweet {tweet_id}")
-                c.get(f"https://ai.relayer.host/api/user/db/{os.getenv('AI_KEY')}?done={tweet_id}").json()
                 time.sleep(20)
         except Exception as e:
             pass
